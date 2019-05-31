@@ -24,42 +24,35 @@ SOFTWARE.
 
 #pragma once
 
-namespace swr {
-
-class VertexCache {
-private:
-	static const int VertexCacheSize = 16;
-
+enum { VertexCacheSize = 16 };
+typedef struct VertexCache {
 	int inputIndex[VertexCacheSize];
 	int outputIndex[VertexCacheSize];
+} VertexCache;
 
-public:
-	VertexCache()
-	{
-		clear();
-	}
+static inline void VertexCache_clear(VertexCache *vc)
+{
+    for (int i = 0; i < VertexCacheSize; i++)
+        vc->inputIndex[i] = -1;
+}
 
-	void clear()
-	{
-		for (size_t i = 0; i < VertexCacheSize; i++)
-			inputIndex[i] = -1;
-	}
+static inline void VertexCache_construct(VertexCache *vc)
+{
+    VertexCache_clear(vc);
+}
 
-	void set(int inIndex, int outIndex)
-	{
-		int cacheIndex = inIndex % VertexCacheSize;
-		inputIndex[cacheIndex] = inIndex;
-		outputIndex[cacheIndex] = outIndex;
-	}
+static inline void VertexCache_set(VertexCache *vc, int inIndex, int outIndex)
+{
+    int cacheIndex = inIndex % VertexCacheSize;
+    vc->inputIndex[cacheIndex] = inIndex;
+    vc->outputIndex[cacheIndex] = outIndex;
+}
 
-	int lookup(int inIndex) const
-	{
-		int cacheIndex = inIndex % VertexCacheSize;
-		if (inputIndex[cacheIndex] == inIndex)
-			return outputIndex[cacheIndex];
-		else
-			return -1;
-	}
-};
-
-} // end namespace swr
+static inline int VertexCache_lookup(VertexCache *vc, int inIndex)
+{
+    int cacheIndex = inIndex % VertexCacheSize;
+    if (vc->inputIndex[cacheIndex] == inIndex)
+        return vc->outputIndex[cacheIndex];
+    else
+        return -1;
+}

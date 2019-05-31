@@ -24,12 +24,9 @@ SOFTWARE.
 
 #pragma once
 
-#include "IRasterizer.h"
 #include "ParameterEquation.h"
 
-namespace swr {
-
-struct TriangleEquations {
+typedef struct {
 	float area2;
 
 	EdgeEquation e0;
@@ -40,32 +37,30 @@ struct TriangleEquations {
 	ParameterEquation invw;
 	ParameterEquation avar[MaxAVars];
 	ParameterEquation pvar[MaxPVars];
+} TriangleEquations;
 
-	TriangleEquations(const RasterizerVertex &v0, const RasterizerVertex &v1, const RasterizerVertex &v2, int aVarCount, int pVarCount)
-	{
-		e0.init(v1, v2);
-		e1.init(v2, v0);
-		e2.init(v0, v1);
+static inline void TriangleEquations_construct(TriangleEquations *te, const RasterizerVertex *v0, const RasterizerVertex *v1, const RasterizerVertex *v2, int aVarCount, int pVarCount)
+{
+    EdgeEquation_init(&te->e0, v1, v2);
+    EdgeEquation_init(&te->e1, v2, v0);
+    EdgeEquation_init(&te->e2, v0, v1);
 
-		area2 = e0.c + e1.c + e2.c;
+    te->area2 = te->e0.c + te->e1.c + te->e2.c;
 
-		// Cull backfacing triangles.
-		if (area2 <= 0)
-			return;
-		
-		float factor = 1.0f / area2;
-		z.init(v0.z, v1.z, v2.z, e0, e1, e2, factor);
+    // Cull backfacing triangles.
+    if (te->area2 <= 0)
+        return;
 
-		float invw0 = 1.0f / v0.w;
-		float invw1 = 1.0f / v1.w;
-		float invw2 = 1.0f / v2.w;
+    float factor = 1.0f / te->area2;
+    ParameterEquation_init(&te->z, v0->z, v1->z, v2->z, &te->e0, &te->e1, &te->e2, factor);
 
-		invw.init(invw0, invw1, invw2, e0, e1, e2, factor);
-		for (int i = 0; i < aVarCount; ++i)
-			avar[i].init(v0.avar[i], v1.avar[i], v2.avar[i], e0, e1, e2, factor);
-		for (int i = 0; i < pVarCount; ++i)
-			pvar[i].init(v0.pvar[i] * invw0, v1.pvar[i] * invw1, v2.pvar[i] * invw2, e0, e1, e2, factor);
-	}
-};
+    float invw0 = 1.0f / v0->w;
+    float invw1 = 1.0f / v1->w;
+    float invw2 = 1.0f / v2->w;
 
-} // end namespace swr
+    ParameterEquation_init(&te->invw, invw0, invw1, invw2, &te->e0, &te->e1, &te->e2, factor);
+    for (int i = 0; i < aVarCount; ++i)
+        ParameterEquation_init(&te->avar[i], v0->avar[i], v1->avar[i], v2->avar[i], &te->e0, &te->e1, &te->e2, factor);
+    for (int i = 0; i < pVarCount; ++i)
+        ParameterEquation_init(&te->pvar[i], v0->pvar[i] * invw0, v1->pvar[i] * invw1, v2->pvar[i] * invw2, &te->e0, &te->e1, &te->e2, factor);
+}

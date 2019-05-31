@@ -3,24 +3,29 @@ cmake_minimum_required(VERSION 3.7)
 project(renderer)
 
 set(SOURCE_FILES
+	Renderer.c
 	Renderer.h
 	EdgeData.h
 	EdgeEquation.h
-	IRasterizer.h
-	LineClipper.cpp
+	Rasterizer.c
+	Rasterizer.h
+	LineClipper.c
 	LineClipper.h
 	ParameterEquation.h
 	PixelData.h
-	PixelShaderBase.h
-	PolyClipper.cpp
+	PixelShader.c
+	PixelShader.h
+	PolyClipper.c
 	PolyClipper.h
 	Rasterizer.h
 	TriangleEquations.h
 	VertexCache.h
-	VertexConfig.h
-	VertexProcessor.cpp
+	VertexProcessor.c
 	VertexProcessor.h
-	VertexShaderBase.h)
+	VertexShader.c
+	VertexShader.h
+	Vector.c
+	Vector.h)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

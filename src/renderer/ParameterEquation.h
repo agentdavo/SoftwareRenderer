@@ -26,56 +26,53 @@ SOFTWARE.
 
 #include "EdgeEquation.h"
 
-namespace swr {
-
-struct ParameterEquation {
+typedef struct ParameterEquation {
 	float a;
 	float b;
 	float c;
+} ParameterEquation;
 
-	void init(
-		float p0,
-		float p1, 
-		float p2, 
-		const EdgeEquation &e0, 
-		const EdgeEquation &e1, 
-		const EdgeEquation &e2, 
-		float factor)
-	{
-		a = factor * (p0 * e0.a + p1 * e1.a + p2 * e2.a);
-		b = factor * (p0 * e0.b + p1 * e1.b + p2 * e2.b);
-		c = factor * (p0 * e0.c + p1 * e1.c + p2 * e2.c);
-	}
+static inline void ParameterEquation_init(
+    ParameterEquation *pe,
+    float p0,
+    float p1,
+    float p2,
+    const EdgeEquation *e0,
+    const EdgeEquation *e1,
+    const EdgeEquation *e2,
+    float factor)
+{
+    pe->a = factor * (p0 * e0->a + p1 * e1->a + p2 * e2->a);
+    pe->b = factor * (p0 * e0->b + p1 * e1->b + p2 * e2->b);
+    pe->c = factor * (p0 * e0->c + p1 * e1->c + p2 * e2->c);
+}
 
-	// Evaluate the parameter equation for the given point.
-	float evaluate(float x, float y) const
-	{
-		return a * x + b * y + c;
-	}
+// Evaluate the parameter equation for the given point.
+static inline float ParameterEquation_evaluate(const ParameterEquation *pe, float x, float y)
+{
+    return pe->a * x + pe->b * y + pe->c;
+}
 
-	// Step parameter value v in x direction.
-	float stepX(float v) const
-	{
-		return v + a;
-	}
+// Step parameter value v in x direction.
+static inline float ParameterEquation_stepX(const ParameterEquation *pe, float v)
+{
+    return v + pe->a;
+}
 
-	// Step parameter value v in x direction.
-	float stepX(float v, float stepSize) const
-	{
-		return v + a * stepSize;
-	}
+// Step parameter value v in x direction.
+static inline float ParameterEquation_stepX2(const ParameterEquation *pe, float v, float stepSize)
+{
+    return v + pe->a * stepSize;
+}
 
-	// Step parameter value v in y direction.
-	float stepY(float v) const
-	{
-		return v + b;
-	}
+// Step parameter value v in y direction.
+static inline float ParameterEquation_stepY(const ParameterEquation *pe, float v)
+{
+    return v + pe->b;
+}
 
-	// Step parameter value v in y direction.
-	float stepY(float v, float stepSize) const
-	{
-		return v + b * stepSize;
-	}
-};
-
-} // end namespace swr
+// Step parameter value v in y direction.
+static inline float ParameterEquation_stepY2(const ParameterEquation *pe, float v, float stepSize)
+{
+    return v + pe->b * stepSize;
+}

@@ -26,96 +26,73 @@ SOFTWARE.
 
 /** @file */
 
-#include "IRasterizer.h"
+#include "Renderer.h"
 #include "TriangleEquations.h"
 
-namespace swr {
+#include <stdbool.h>
 
-/// PixelData passed to the pixel shader for display.
-struct PixelData {
-	int x; ///< The x coordinate.
-	int y; ///< The y coordinate.
+// Initialize pixel data for the given pixel coordinates.
+inline void PixelData_init(PixelData *pd, const TriangleEquations *eqn, float x, float y, int aVarCount, int pVarCount, bool interpolateZ, bool interpolateW)
+{
+    if (interpolateZ)
+        pd->z = ParameterEquation_evaluate(&eqn->z, x, y);
 
-	float z; ///< The interpolated z value.
-	float w; ///< The interpolated w value.
-	float invw; ///< The interpolated 1 / w value.
-	
-	/// Affine variables.
-	float avar[MaxAVars];
-	
-	/// Perspective variables.
-	float pvar[MaxPVars];
-	
-	// Used internally.
-	float pvarTemp[MaxPVars];
+    if (interpolateW || pVarCount > 0)
+    {
+        pd->invw = ParameterEquation_evaluate(&eqn->invw, x, y);
+        pd->w = 1.0f / pd->invw;
+    }
 
-	PixelData() {}
+    for (int i = 0; i < aVarCount; ++i)
+        pd->avar[i] = ParameterEquation_evaluate(&eqn->avar[i], x, y);
 
-	// Initialize pixel data for the given pixel coordinates.
-	void init(const TriangleEquations &eqn, float x, float y, int aVarCount, int pVarCount, bool interpolateZ, bool interpolateW)
-	{
-		if (interpolateZ)
-			z = eqn.z.evaluate(x, y);
-		
-		if (interpolateW || pVarCount > 0) 
-		{
-			invw = eqn.invw.evaluate(x, y);
-			w = 1.0f / invw;
-		}
+    for (int i = 0; i < pVarCount; ++i)
+    {
+        pd->pvarTemp[i] = ParameterEquation_evaluate(&eqn->pvar[i], x, y);
+        pd->pvar[i] = pd->pvarTemp[i] * pd->w;
+    }
+}
 
-		for (int i = 0; i < aVarCount; ++i)
-			avar[i] = eqn.avar[i].evaluate(x, y);
-		
-		for (int i = 0; i < pVarCount; ++i)
-		{
-			pvarTemp[i] = eqn.pvar[i].evaluate(x, y);
-			pvar[i] = pvarTemp[i] * w;
-		}
-	}
+// Step all the pixel data in the x direction.
+inline void PixelData_stepX(PixelData *pd, const TriangleEquations *eqn, int aVarCount, int pVarCount, bool interpolateZ, bool interpolateW)
+{
+    if (interpolateZ)
+        pd->z = ParameterEquation_stepX(&eqn->z, pd->z);
 
-	// Step all the pixel data in the x direction.
-	void stepX(const TriangleEquations &eqn, int aVarCount, int pVarCount, bool interpolateZ, bool interpolateW)
-	{
-		if (interpolateZ)
-			z = eqn.z.stepX(z);
-		
-		if (interpolateW || pVarCount > 0) 
-		{
-			invw = eqn.invw.stepX(invw);
-			w = 1.0f / invw;
-		}
+    if (interpolateW || pVarCount > 0)
+    {
+        pd->invw = ParameterEquation_stepX(&eqn->invw, pd->invw);
+        pd->w = 1.0f / pd->invw;
+    }
 
-		for (int i = 0; i < aVarCount; ++i)
-			avar[i] = eqn.avar[i].stepX(avar[i]);
+    for (int i = 0; i < aVarCount; ++i)
+        pd->avar[i] = ParameterEquation_stepX(&eqn->avar[i], pd->avar[i]);
 
-		for (int i = 0; i < pVarCount; ++i)
-		{
-			pvarTemp[i] = eqn.pvar[i].stepX(pvarTemp[i]);			
-			pvar[i] = pvarTemp[i] * w;
-		}
-	}
+    for (int i = 0; i < pVarCount; ++i)
+    {
+        pd->pvarTemp[i] = ParameterEquation_stepX(&eqn->pvar[i], pd->pvarTemp[i]);
+        pd->pvar[i] = pd->pvarTemp[i] * pd->w;
+    }
+}
 
-	// Step all the pixel data in the y direction.
-	void stepY(const TriangleEquations &eqn, int aVarCount, int pVarCount, bool interpolateZ, bool interpolateW)
-	{
-		if (interpolateZ)
-			z = eqn.z.stepY(z);
-		
-		if (interpolateW || pVarCount > 0) 
-		{
-			invw = eqn.invw.stepY(invw);
-			w = 1.0f / invw;
-		}
+// Step all the pixel data in the y direction.
+inline void PixelData_stepY(PixelData *pd, const TriangleEquations *eqn, int aVarCount, int pVarCount, bool interpolateZ, bool interpolateW)
+{
+    if (interpolateZ)
+        pd->z = ParameterEquation_stepY(&eqn->z, pd->z);
 
-		for (int i = 0; i < aVarCount; ++i)
-			avar[i] = eqn.avar[i].stepY(avar[i]);
+    if (interpolateW || pVarCount > 0)
+    {
+        pd->invw = ParameterEquation_stepY(&eqn->invw, pd->invw);
+        pd->w = 1.0f / pd->invw;
+    }
 
-		for (int i = 0; i < pVarCount; ++i)
-		{
-			pvarTemp[i] = eqn.pvar[i].stepY(pvarTemp[i]);			
-			pvar[i] = pvarTemp[i] * w;
-		}
-	}
-};
+    for (int i = 0; i < aVarCount; ++i)
+        pd->avar[i] = ParameterEquation_stepY(&eqn->avar[i], pd->avar[i]);
 
-} // end namespace swr
+    for (int i = 0; i < pVarCount; ++i)
+    {
+        pd->pvarTemp[i] = ParameterEquation_stepY(&eqn->pvar[i], pd->pvarTemp[i]);
+        pd->pvar[i] = pd->pvarTemp[i] * pd->w;
+    }
+}

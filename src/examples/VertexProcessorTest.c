@@ -25,66 +25,56 @@ SOFTWARE.
 #include "SDL.h"
 #include "Renderer.h"
 
-using namespace swr;
+#include <stdlib.h>
 
-class PixelShader : public PixelShaderBase<PixelShader> {
-public:
-	static const bool InterpolateZ = false;
-	static const bool InterpolateW = false;
-	static const int AVarCount = 3;
-	static const int PVarCount = 0;
-	
-	static SDL_Surface* surface;
+SDL_Surface* surface;
 
-	static void drawPixel(const PixelData &p)
-	{
-		int rint = (int)(p.avar[0] * 255);
-		int gint = (int)(p.avar[1] * 255);
-		int bint = (int)(p.avar[2] * 255);
-		
-		Uint32 color = rint << 16 | gint << 8 | bint;
-
-		Uint32 *buffer = (Uint32*)((Uint8 *)surface->pixels + (int)p.y * surface->pitch + (int)p.x * 4);
-		*buffer = color;
-	}
-};
-
-SDL_Surface* PixelShader::surface;
-
-struct VertexData {
+typedef struct {
 	float x, y, z;
 	float r, g, b;
-};
+} VertexData;
 
-class VertexShader : public VertexShaderBase<VertexShader> {
-public:
-	static const int AttribCount = 3;
+static void processVertex(VertexShaderInput in, VertexShaderOutput *out)
+{
+	const VertexData *data = (const VertexData*)(in[0]);
+	out->x = data->x;
+	out->y = data->y;
+	out->z = data->z;
+	out->w = 1.0f;
+	out->avar[0] = data->r;
+	out->avar[1] = data->g;
+	out->avar[2] = data->b;
+}
 
-	static void processVertex(VertexShaderInput in, VertexShaderOutput *out)
-	{
-		const VertexData *data = static_cast<const VertexData*>(in[0]);
-		out->x = data->x;
-		out->y = data->y;
-		out->z = data->z;
-		out->w = 1.0f;
-		out->avar[0] = data->r;
-		out->avar[1] = data->g;
-		out->avar[2] = data->b;
-	}
-};
+static void drawPixel(const PixelData *p)
+{
+    int rint = (int)(p->avar[0] * 255);
+    int gint = (int)(p->avar[1] * 255);
+    int bint = (int)(p->avar[2] * 255);
+
+    Uint32 color = rint << 16 | gint << 8 | bint;
+
+    Uint32 *buffer = (Uint32*)((Uint8 *)surface->pixels + (int)p->y * surface->pitch + (int)p->x * 4);
+    *buffer = color;
+}
 
 void drawTriangles(SDL_Surface *s)
 {
-	Rasterizer r;
-	VertexProcessor v(&r);
+    SoftwareRenderer_init();
 
-	r.setScissorRect(0, 0, 640, 480);
-	r.setPixelShader<PixelShader>();
-	PixelShader::surface = s;
+    VertexShader *vshader = SoftwareRenderer_createVertexShader(3, processVertex);
+    PixelShader *pshader = SoftwareRenderer_createPixelShader(false, false, 3, 0, drawPixel);
 
-	v.setViewport(100, 100, 640 - 200, 480 - 200);
-	v.setCullMode(CullMode::None);
-	v.setVertexShader<VertexShader>();
+    Rasterizer *r = SoftwareRenderer_createRasterizer();
+    Rasterizer_setScissorRect(r, 0, 0, 640, 480);
+    Rasterizer_setPixelShader(r, pshader);
+
+    surface = s;
+
+    VertexProcessor *vp = SoftwareRenderer_createVertexProcessor(r);
+	VertexProcessor_setViewport(vp, 100, 100, 640 - 200, 480 - 200);
+    VertexProcessor_setCullMode(vp, CM_None);
+    VertexProcessor_setVertexShader(vp, vshader);
 
 	VertexData vdata[3];
 
@@ -114,8 +104,10 @@ void drawTriangles(SDL_Surface *s)
 	idata[1] = 1;
 	idata[2] = 2;
 
-	v.setVertexAttribPointer(0, sizeof(VertexData), vdata);
-	v.drawElements(DrawMode::Triangle, 3, idata);
+	VertexProcessor_setVertexAttribPointer(vp, 0, sizeof(VertexData), vdata);
+	VertexProcessor_drawElements(vp, DM_Triangle, 3, idata);
+
+    SoftwareRenderer_destroy();
 }
 
 int main(int argc, char *argv[])

@@ -24,38 +24,33 @@ SOFTWARE.
 
 #include "SDL.h"
 #include "Rasterizer.h"
+#include <stdlib.h>
 
-using namespace swr;
+SDL_Surface* surface;
 
-class PixelShader : public PixelShaderBase<PixelShader> {
-public:
-	static const bool InterpolateZ = false;
-	static const bool InterpolateW = false;
-	static const int AVarCount = 3;
-	
-	static SDL_Surface* surface;
-
-	static void drawPixel(const PixelData &p)
-	{
-		int rint = (int)(p.avar[0] * 255);
-		int gint = (int)(p.avar[1] * 255);
-		int bint = (int)(p.avar[2] * 255);
+void drawPixel(const PixelData *p)
+{
+    int rint = (int)(p->avar[0] * 255);
+    int gint = (int)(p->avar[1] * 255);
+	int bint = (int)(p->avar[2] * 255);
 		
-		Uint32 color = rint << 16 | gint << 8 | bint;
+	Uint32 color = rint << 16 | gint << 8 | bint;
 
-		Uint32 *buffer = (Uint32*)((Uint8 *)surface->pixels + (int)p.y * surface->pitch + (int)p.x * 4);
-		*buffer = color;
-	}
-};
-
-SDL_Surface* PixelShader::surface;
+	Uint32 *buffer = (Uint32*)((Uint8 *)surface->pixels + (int)p->y * surface->pitch + (int)p->x * 4);
+	*buffer = color;
+}
 
 void drawTriangle(SDL_Surface *screen)
 {
-	Rasterizer r;
-	r.setScissorRect(0, 0, 640, 480);
-	r.setPixelShader<PixelShader>();
-	PixelShader::surface = screen;
+    SoftwareRenderer_init();
+
+    PixelShader *pshader = SoftwareRenderer_createPixelShader(false, false, 3, 0, drawPixel);
+
+    Rasterizer *r = SoftwareRenderer_createRasterizer();
+	Rasterizer_setScissorRect(r, 0, 0, 640, 480);
+	Rasterizer_setPixelShader(r, pshader);
+	
+    surface = screen;
 
 	RasterizerVertex v0, v1, v2;
 	
@@ -77,7 +72,9 @@ void drawTriangle(SDL_Surface *screen)
 	v2.avar[1] = 0.0f;
 	v2.avar[2] = 1.0f;
 
-	r.drawTriangle(v0, v1, v2);
+	Rasterizer_drawTriangle(r, &v0, &v1, &v2);
+
+    SoftwareRenderer_destroy();
 }
 
 int main(int argc, char *argv[])

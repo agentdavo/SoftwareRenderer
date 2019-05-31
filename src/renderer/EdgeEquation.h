@@ -24,65 +24,63 @@ SOFTWARE.
 
 #pragma once
 
-#include "IRasterizer.h"
+#include "Renderer.h"
 
-namespace swr {
+#include <stdbool.h>
 
-struct EdgeEquation {
+typedef struct EdgeEquation {
 	float a;
 	float b;
 	float c;
 	bool tie; 
+} EdgeEquation;
 
-	void init(const RasterizerVertex &v0, const RasterizerVertex &v1)
-	{
-		a = v0.y - v1.y;
-		b = v1.x - v0.x;
-		c = - (a * (v0.x + v1.x) + b * (v0.y + v1.y)) / 2;
-		tie = a != 0 ? a > 0 : b > 0;
-	}
+static inline void EdgeEquation_init(EdgeEquation *ee, const RasterizerVertex *v0, const RasterizerVertex *v1)
+{
+    ee->a = v0->y - v1->y;
+    ee->b = v1->x - v0->x;
+    ee->c = -(ee->a * (v0->x + v1->x) + ee->b * (v0->y + v1->y)) / 2;
+    ee->tie = ee->a != 0 ? ee->a > 0 : ee->b > 0;
+}
 
-	// Evaluate the edge equation for the given point.
-	float evaluate(float x, float y) const
-	{
-		return a * x + b * y + c;
-	}
+// Evaluate the edge equation for the given point.
+static inline float EdgeEquation_evaluate(const EdgeEquation *ee, float x, float y)
+{
+    return ee->a * x + ee->b * y + ee->c;
+}
 
-	// Test if the given point is inside the edge.
-	bool test(float x, float y) const
-	{
-		return test(evaluate(x, y));
-	}
+// Test for a given evaluated value.
+static inline bool EdgeEquation_testValue(const EdgeEquation *ee, float v)
+{
+    return (v > 0 || (v == 0 && ee->tie));
+}
 
-	// Test for a given evaluated value.
-	bool test(float v) const
-	{
-		return (v > 0 || (v == 0 && tie));
-	}
+// Test if the given point is inside the edge.
+static inline bool EdgeEquation_testPoint(const EdgeEquation *ee, float x, float y)
+{
+    return EdgeEquation_testValue(ee, EdgeEquation_evaluate(ee, x, y));
+}
 
-	// Step the equation value v to the x direction
-	float stepX(float v) const
-	{
-		return v + a;
-	}
+// Step the equation value v to the x direction
+static inline float EdgeEquation_stepX(const EdgeEquation *ee, float v)
+{
+    return v + ee->a;
+}
 
-	// Step the equation value v to the x direction
-	float stepX(float v, float stepSize) const
-	{
-		return v + a * stepSize;
-	}
+// Step the equation value v to the x direction
+static inline float EdgeEquation_stepX2(const EdgeEquation *ee, float v, float stepSize)
+{
+    return v + ee->a * stepSize;
+}
 
-	// Step the equation value v to the y direction
-	float stepY(float v) const
-	{
-		return v + b;
-	}
+// Step the equation value v to the y direction
+static inline float EdgeEquation_stepY(const EdgeEquation *ee, float v)
+{
+    return v + ee->b;
+}
 
-	// Step the equation value vto the y direction
-	float stepY(float v, float stepSize) const
-	{
-		return v + b * stepSize;
-	}
-};
-
-} // end namespace swr
+// Step the equation value vto the y direction
+static inline float EdgeEquation_stepY2(const EdgeEquation *ee, float v, float stepSize)
+{
+    return v + ee->b * stepSize;
+}

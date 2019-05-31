@@ -24,20 +24,20 @@ SOFTWARE.
 
 #pragma once
 
+#include "Renderer.h"
+
 /** @file */
 
-#include "IRasterizer.h"
+/// Base class for vertex shaders.
+/** Derive your own vertex shaders from this class and redefine AttribCount etc. */
+typedef struct VertexShader_s {
+	/// Number of vertex attribute pointers this vertex shader uses.
+    int AttribCount;
 
-namespace swr {
+    /// This performs the vertex processing and will be called for each vertex.
+    ProcessVertexCallback processVertex;
+} VertexShader;
 
-/// Maximum supported number of vertex attributes.
-const int MaxVertexAttribs = 8;  
+static const VertexShader VertexShader_default = { 0, 0/*NULL*/ };
 
-/// Vertex shader output.
-typedef RasterizerVertex VertexShaderOutput;
-
-/// Vertex shader input is an array of vertex attribute pointers.
-typedef const void *VertexShaderInput[MaxVertexAttribs];
-
-} // end namespace swr
-
+void VertexShader_init(VertexShader *ps, int attribCount, ProcessVertexCallback callback);

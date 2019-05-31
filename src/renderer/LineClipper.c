@@ -22,28 +22,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include "LineClipper.h"
 
-/** @file */
+#include <math.h>
 
-namespace swr {
+void LineClipper_clipToPlane(LineClipper *lc, float a, float b, float c, float d)
+{
+	if (lc->fullyClipped)
+		return;
 
-/// Base class for vertex shaders.
-/** Derive your own vertex shaders from this class and redefine AttribCount etc. */
-template <class Derived>
-class VertexShaderBase {
-public:
-	/// Number of vertex attribute pointers this vertex shader uses.
-	static const int AttribCount = 0;
+	float dp0 = a * lc->m_v0->x + b * lc->m_v0->y + c * lc->m_v0->z + d * lc->m_v0->w;
+	float dp1 = a * lc->m_v1->x + b * lc->m_v1->y + c * lc->m_v1->z + d * lc->m_v1->w;
 
-	/// Process a single vertex.
-	/** Implement this in your own vertex shader. */
-	static void processVertex(VertexShaderInput in, VertexShaderOutput *out)
+	bool dp0neg = dp0 < 0;
+	bool dp1neg = dp1 < 0;
+
+	if (dp0neg && dp1neg) {
+        lc->fullyClipped = true;
+		return;
+	} 
+	
+	if (dp0neg)
 	{
-
+		float t = -dp0 / (dp1 - dp0);
+        lc->t0 = fmaxf(lc->t0, t);
 	}
-};
-
-class DummyVertexShader : public VertexShaderBase<DummyVertexShader> {};
-
-} // end namespace swr
+	else
+	{
+		float t = dp0 / (dp0 - dp1);
+        lc->t1 = fminf(lc->t1, t);
+	}
+}

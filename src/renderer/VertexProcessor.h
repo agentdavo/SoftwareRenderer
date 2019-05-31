@@ -24,100 +24,29 @@ SOFTWARE.
 
 #pragma once
 
-/** @file */ 
+/** @file */
 
-#include <vector>
-#include <cassert>
-
-#include "IRasterizer.h"
-#include "VertexConfig.h"
+#include "Renderer.h"
+#include "Rasterizer.h"
+#include "Renderer.h"
 #include "LineClipper.h"
 #include "PolyClipper.h"
-#include "VertexShaderBase.h"
+#include "VertexShader.h"
 #include "VertexCache.h"
+#include "Vector.h"
 
-namespace swr {
-
-/// Primitive draw mode.
-enum class DrawMode {
-	Point,
-	Line,
-	Triangle
-};
-
-/// Triangle culling mode.
-enum class CullMode {
-	None,
-	CCW,
-	CW
+enum {
+    ClipMask_PosX = 0x01,
+    ClipMask_NegX = 0x02,
+    ClipMask_PosY = 0x04,
+    ClipMask_NegY = 0x08,
+    ClipMask_PosZ = 0x10,
+    ClipMask_NegZ = 0x20
 };
 
 /// Process vertices and pass them to a rasterizer.
-class VertexProcessor {
-public:
-	/// Constructor.
-	VertexProcessor(IRasterizer *rasterizer);
+typedef struct VertexProcessor_s {
 
-	/// Change the rasterizer where the primitives are sent.
-	void setRasterizer(IRasterizer *rasterizer);
-
-	/// Set the viewport.
-	/** Top-Left is (0, 0) */
-	void setViewport(int x, int y, int width, int height);
-
-	/// Set the depth range.
-	/** Default is (0, 1) */
-	void setDepthRange(float n, float f);
-
-	/// Set the cull mode.
-	/** Default is CullMode::CW to cull clockwise triangles. */
-	void setCullMode(CullMode mode);
-
-	/// Set the vertex shader.
-	template <class VertexShader>
-	void setVertexShader()
-	{
-		assert(VertexShader::AttribCount <= MaxVertexAttribs);
-		m_attribCount = VertexShader::AttribCount;
-		m_processVertexFunc = VertexShader::processVertex;
-	}
-
-	/// Set a vertex attrib pointer.
-	void setVertexAttribPointer(int index, int stride, const void *buffer);
-	
-	/// Draw a number of points, lines or triangles.
-	void drawElements(DrawMode mode, size_t count, int *indices) const;
-
-private:
-	struct ClipMask {
-		enum Enum {
-			PosX = 0x01,
-			NegX = 0x02,
-			PosY = 0x04,
-			NegY = 0x08,
-			PosZ = 0x10,
-			NegZ = 0x20
-		};
-	};
-
-	int clipMask(VertexShaderOutput &v) const;
-	const void *attribPointer(int attribIndex, int elementIndex) const;
-	void processVertex(VertexShaderInput in, VertexShaderOutput *out) const;
-	void initVertexInput(VertexShaderInput in, int index) const;
-
-	void clipPoints() const;
-	void clipLines() const;
-	void clipTriangles() const;
-
-	void clipPrimitives(DrawMode mode) const;
-	void processPrimitives(DrawMode mode) const;
-	int primitiveCount(DrawMode mode) const;
-
-	void drawPrimitives(DrawMode mode) const;
-	void cullTriangles() const;
-	void transformVertices() const;
-
-private:
 	struct {
 		int x, y, width, height;
 		float px, py, ox, oy;
@@ -128,7 +57,9 @@ private:
 	} m_depthRange;
 
 	CullMode m_cullMode;
-	IRasterizer *m_rasterizer;
+	Rasterizer *m_rasterizer;
+
+    VertexShader *m_vertexShader;
 	
 	void (*m_processVertexFunc)(VertexShaderInput, VertexShaderOutput*);
 	int m_attribCount;
@@ -139,11 +70,64 @@ private:
 	} m_attributes[MaxVertexAttribs];
 
 	// Some temporary variables for speed
-	mutable PolyClipper polyClipper;
-	mutable std::vector<VertexShaderOutput> m_verticesOut;
-	mutable std::vector<int> m_indicesOut;
-	mutable std::vector<int> m_clipMask;
-	mutable std::vector<bool> m_alreadyProcessed;
-};
+	PolyClipper m_polyClipper;
 
-} // end namespace swr
+	//std::vector<VertexShaderOutput> m_verticesOut;
+    Vector m_verticesOut;
+
+	//std::vector<int> m_indicesOut;
+    Vector m_indicesOut;
+
+	//std::vector<int> m_clipMask;
+    Vector m_clipMask;
+
+	//std::vector<bool> m_alreadyProcessed;
+    Vector m_alreadyProcessed;
+} VertexProcessor;
+
+/// Constructor.
+void VertexProcessor_construct(VertexProcessor *vp, Rasterizer *rasterizer);
+
+/// Destructor
+void VertexProcessor_destruct(VertexProcessor *vp);
+
+/// Change the rasterizer where the primitives are sent.
+void VertexProcessor_setRasterizer(VertexProcessor *vp, Rasterizer *rasterizer);
+
+/// Set the viewport.
+/** Top-Left is (0, 0) */
+void VertexProcessor_setViewport(VertexProcessor *vp, int x, int y, int width, int height);
+
+/// Set the depth range.
+/** Default is (0, 1) */
+void VertexProcessor_setDepthRange(VertexProcessor *vp, float n, float f);
+
+/// Set the cull mode.
+/** Default is CullMode::CW to cull clockwise triangles. */
+void VertexProcessor_setCullMode(VertexProcessor *vp, CullMode mode);
+
+/// Set the vertex shader.
+void VertexProcessor_setVertexShader(VertexProcessor *vp, VertexShader *vs);
+
+/// Set a vertex attrib pointer.
+void VertexProcessor_setVertexAttribPointer(VertexProcessor *vp, int index, int stride, const void *buffer);
+
+/// Draw a number of points, lines or triangles.
+void VertexProcessor_drawElements(VertexProcessor *vp, DrawMode mode, unsigned long count, int *indices);
+
+int VertexProcessor_clipMask(VertexShaderOutput *v);
+const void *VertexProcessor_attribPointer(VertexProcessor *vp, int attribIndex, int elementIndex);
+void VertexProcessor_processVertex(VertexProcessor *vp, VertexShaderInput in, VertexShaderOutput *out);
+void VertexProcessor_initVertexInput(VertexProcessor *vp, VertexShaderInput in, int index);
+
+void VertexProcessor_clipPoints(VertexProcessor *vp);
+void VertexProcessor_clipLines(VertexProcessor *vp);
+void VertexProcessor_clipTriangles(VertexProcessor *vp);
+
+void VertexProcessor_clipPrimitives(VertexProcessor *vp, DrawMode mode);
+void VertexProcessor_processPrimitives(VertexProcessor *vp, DrawMode mode);
+int VertexProcessor_primitiveCount(VertexProcessor *vp, DrawMode mode);
+
+void VertexProcessor_drawPrimitives(VertexProcessor *vp, DrawMode mode);
+void VertexProcessor_cullTriangles(VertexProcessor *vp);
+void VertexProcessor_transformVertices(VertexProcessor *vp);

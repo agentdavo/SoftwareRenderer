@@ -24,68 +24,55 @@ SOFTWARE.
 
 #pragma once
 
-#include "VertexConfig.h"
-#include <vector>
+#include "Renderer.h"
+#include "Vector.h"
 
-namespace swr {
+#include <stdbool.h>
 
-class Helper {
-public:
-	static VertexShaderOutput interpolateVertex(const VertexShaderOutput &v0, const VertexShaderOutput &v1, float t, int attribCount)
-	{
-		VertexShaderOutput result;
-		
-		result.x = v0.x * (1.0f - t) + v1.x * t;
-		result.y = v0.y * (1.0f - t) + v1.y * t;
-		result.z = v0.z * (1.0f - t) + v1.z * t;
-		result.w = v0.w * (1.0f - t) + v1.w * t;
-		for (int i = 0; i < attribCount; ++i)
-			result.avar[i] = v0.avar[i] * (1.0f - t) + v1.avar[i] * t;
-
-		return result;
-	}
-};
-
-class PolyClipper {
-private:
+typedef struct {
 	int m_attribCount;
-	std::vector<int> *m_indicesIn;
-	std::vector<int> *m_indicesOut;
-	std::vector<VertexShaderOutput> *m_vertices;
-	
-public:
-	PolyClipper()
-	{
-		m_indicesIn = new std::vector<int>();
-		m_indicesOut = new std::vector<int>();
-	}
+	Vector m_indicesIn;   // array
+    Vector m_indicesOut;  // array
+	Vector *m_vertices; // array
+} PolyClipper;
 
-	~PolyClipper()
-	{
-		delete m_indicesIn;
-		delete m_indicesOut;
-	}
+static inline void PolyClipper_construct(PolyClipper *pc)
+{
+    Vector_init(&pc->m_indicesIn, sizeof(int));
+    Vector_init(&pc->m_indicesOut, sizeof(int));
+}
 
-	void init(std::vector<VertexShaderOutput> *vertices, int i1, int i2, int i3, int attribCount);
+static inline void PolyClipper_destruct(PolyClipper *pc)
+{
+    Vector_free(&pc->m_indicesIn);
+    Vector_free(&pc->m_indicesOut);
+}
 
-	// Clip the poly to the plane given by the formula a * x + b * y + c * z + d * w.
-	void clipToPlane(float a, float b, float c, float d);
+void PolyClipper_init(PolyClipper *pc, Vector *vertices, int i1, int i2, int i3, int attribCount);
 
-	std::vector<int> &indices() const
-	{
-		return *m_indicesIn;
-	}
+// Clip the poly to the plane given by the formula a * x + b * y + c * z + d * w.
+void PolyClipper_clipToPlane(PolyClipper *pc, float a, float b, float c, float d);
 
-	bool fullyClipped() const
-	{
-		return m_indicesIn->size() < 3;
-	}
+static inline Vector* PolyClipper_indices(PolyClipper *pc)
+{
+    return &pc->m_indicesIn;
+}
 
-private:
-	template <typename T> int sgn(T val) 
-	{
-    	return (T(0) < val) - (val < T(0));
-	}
-};
+static inline bool PolyClipper_fullyClipped(PolyClipper *pc)
+{
+    return Vector_size(&pc->m_indicesIn) < 3;
+}
 
-} // end namespace swr
+static inline VertexShaderOutput interpolateVertex(const VertexShaderOutput *v0, const VertexShaderOutput *v1, float t, int attribCount)
+{
+    VertexShaderOutput result;
+
+    result.x = v0->x * (1.0f - t) + v1->x * t;
+    result.y = v0->y * (1.0f - t) + v1->y * t;
+    result.z = v0->z * (1.0f - t) + v1->z * t;
+    result.w = v0->w * (1.0f - t) + v1->w * t;
+    for (int i = 0; i < attribCount; ++i)
+        result.avar[i] = v0->avar[i] * (1.0f - t) + v1->avar[i] * t;
+
+    return result;
+}
